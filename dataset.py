@@ -16,12 +16,15 @@ class Sorghum100(VisionDataset):
 		super().__init__(root, transform=transform, target_transform=target_transform)
 		self.train = train
 
-		data_dir = Path(root).resolve() / "data"
-		self.train_dir = data_dir / "train_images"
-		self.test_dir = data_dir / "test"
+		self.data_dir = Path(root).resolve()
+		self.train_dir = self.data_dir / "train_images"
+		self.test_dir = self.data_dir / "test"
+
+		if not (self.data_dir / "train_cultivar_mapping.csv").exists():
+			raise RuntimeError(f"Dataset seems missing. Please download it and put it in {root}")
 
 		# There's an extra .DS_Store, drop it
-		self.df_train = pandas.read_csv(data_dir / "train_cultivar_mapping.csv")
+		self.df_train = pandas.read_csv(self.data_dir / "train_cultivar_mapping.csv")
 		self.df_train.drop([3329], inplace=True)
 
 		# Can be a simple list, but for consistency let it be DataFrame
@@ -40,7 +43,7 @@ class Sorghum100(VisionDataset):
 	def __getitem__(self, index: int) -> Tuple[Any, Any]:
 		if self.train:
 			img = Image.open(self.train_dir / self.df_train.iloc[index, 0])
-			target = self.le.transform([self.df_train.iloc[index, 2]])
+			target = self.le.transform([self.df_train.iloc[index, 1]])
 
 			if self.transform is not None:
 				img = self.transform(img)
