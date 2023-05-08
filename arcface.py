@@ -31,10 +31,10 @@ class ArcFace(torch.nn.Module):
 class ArcFaceFC(torch.nn.Module):
 	def __init__(self, arcface: ArcFace, embedding_size: int, num_classes: int) -> None:
 		super().__init__()
-		self.weight = torch.nn.Parameter(torch.normal(0.0, 0.01, [num_classes, embedding_size]))
-		self.embedding_size = embedding_size
 		self.arcface = arcface
+		self.embedding_size = embedding_size
 		self.cross_entropy = torch.nn.CrossEntropyLoss()
+		self.weight = torch.nn.Parameter(torch.normal(0.0, 0.01, [num_classes, embedding_size]))
 
 	def forward(self, images: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
 		labels.squeeze_()
