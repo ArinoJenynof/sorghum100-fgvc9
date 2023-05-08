@@ -2,6 +2,7 @@
 import math
 import torch
 
+
 class ArcFace(torch.nn.Module):
 	def __init__(self, s: float = 64.0, margin: float = 0.5):
 		super().__init__()
@@ -26,6 +27,7 @@ class ArcFace(torch.nn.Module):
 		logits = logits * self.s
 		return logits
 
+
 class ArcFaceFC(torch.nn.Module):
 	def __init__(self, arcface: ArcFace, embedding_size: int, num_classes: int) -> None:
 		super().__init__()
@@ -33,7 +35,7 @@ class ArcFaceFC(torch.nn.Module):
 		self.embedding_size = embedding_size
 		self.arcface = arcface
 		self.cross_entropy = torch.nn.CrossEntropyLoss()
-		
+
 	def forward(self, images: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
 		labels.squeeze_()
 		labels = labels.to(torch.long)

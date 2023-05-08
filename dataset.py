@@ -5,6 +5,7 @@ from torchvision.datasets import VisionDataset
 from PIL import Image
 import pandas
 
+
 class Sorghum100(VisionDataset):
 	def __init__(
 		self,
@@ -28,18 +29,19 @@ class Sorghum100(VisionDataset):
 		self.df_train.drop([3329], inplace=True)
 
 		# Can be a simple list, but for consistency let it be DataFrame
-		self.df_test = pandas.DataFrame([x.relative_to(self.test_dir) for x in self.test_dir.iterdir() if x.is_file()], columns=["filename"])
+		test = [x.relative_to(self.test_dir) for x in self.test_dir.iterdir() if x.is_file()],
+		self.df_test = pandas.DataFrame(test, columns=["filename"])
 
 		# Leverage sklearn's LabelEncoder for similarly class_to_idx cos i'm lazy :P
 		cultivar = self.df_train["cultivar"].unique()
 		self.le = LabelEncoder()
 		self.le.fit(cultivar)
-	
+
 	def __len__(self) -> int:
 		if self.train:
 			return self.df_train.shape[0]
 		return self.df_test.shape[0]
-	
+
 	def __getitem__(self, index: int) -> Tuple[Any, Any]:
 		if self.train:
 			img = Image.open(self.train_dir / self.df_train.iloc[index, 0])
@@ -49,9 +51,9 @@ class Sorghum100(VisionDataset):
 				img = self.transform(img)
 			if self.target_transform is not None:
 				target = self.target_transform(target)
-			
+
 			return img, target
-		
+
 		img = Image.open(self.test_dir / self.df_test.iloc[index, 0])
 		target = None
 		if self.transform is not None:
