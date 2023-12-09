@@ -1,61 +1,52 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Jan  4 00:01:41 2023
+
+@author: Arino Jenynof
+"""
 from pathlib import Path
-from typing import Any, Optional, Callable, Tuple
-from sklearn.preprocessing import LabelEncoder
-from torchvision.datasets import VisionDataset
-from PIL import Image
-import pandas
+from torch.utils.data import Dataset
+import numpy as np
+import pandas as pd
+import PIL
 
+class Sorghum100DataSet(Dataset):
+    def __init__(self, root: Path, transform, is_train=True):
+        if is_train:
+            self.image_path = root / "train"
+        else:
+            self.image_path = root / "test"
+        self.is_train = is_train
 
-class Sorghum100(VisionDataset):
-	def __init__(
-		self,
-		root: str,
-		train: bool = True,
-		transform: Optional[Callable] = None,
-		target_transform: Optional[Callable] = None
-	) -> None:
-		super().__init__(root, transform=transform, target_transform=target_transform)
-		self.train = train
+        # Create idx_to_class and class_to_idx like in pytorch
+        self.df = pd.read_csv(root / "train_cultivar_mapping.csv")
+        self.df = self.df.drop(["file_path", "is_exist"], axis=1)
+        self.df["class_to_idx"] = pd.Series(data=[0 for _ in range(self.df.shape[0])], dtype="Int64")
+        self.idx_to_class = dict()
+        for i, label in enumerate(self.df["cultivar"].unique()):
+            self.idx_to_class[i] = label
+            self.df.loc[self.df["cultivar"] == label, "class_to_idx"] = i
 
-		self.data_dir = Path(root).resolve()
-		self.train_dir = self.data_dir / "train_images"
-		self.test_dir = self.data_dir / "test"
+        # Albumentations.Compose, not pytorch.Compose
+        self.transform = transform
+        
+        # Test image
+        self.df_test = pd.read_csv(root / "sample_submission.csv")
 
-		if not (self.data_dir / "train_cultivar_mapping.csv").exists():
-			raise RuntimeError(f"Dataset seems missing. Please download it and put it in {root}")
+    def __len__(self):
+        if self.is_train:
+            return self.df.shape[0]
+        else:
+            return self.df_test.shape[0]
 
-		# There's an extra .DS_Store, drop it
-		self.df_train = pandas.read_csv(self.data_dir / "train_cultivar_mapping.csv")
-		self.df_train.drop([3329], inplace=True)
-
-		# Can be a simple list, but for consistency let it be DataFrame
-		test = [x.relative_to(self.test_dir) for x in self.test_dir.iterdir() if x.is_file()],
-		self.df_test = pandas.DataFrame(test, columns=["filename"])
-
-		# Leverage sklearn's LabelEncoder for similarly class_to_idx cos i'm lazy :P
-		cultivar = self.df_train["cultivar"].unique()
-		self.le = LabelEncoder()
-		self.le.fit(cultivar)
-
-	def __len__(self) -> int:
-		if self.train:
-			return self.df_train.shape[0]
-		return self.df_test.shape[0]
-
-	def __getitem__(self, index: int) -> Tuple[Any, Any]:
-		if self.train:
-			img = Image.open(self.train_dir / self.df_train.iloc[index, 0])
-			target = self.le.transform([self.df_train.iloc[index, 1]])
-
-			if self.transform is not None:
-				img = self.transform(img)
-			if self.target_transform is not None:
-				target = self.target_transform(target)
-
-			return img, target
-
-		img = Image.open(self.test_dir / self.df_test.iloc[index, 0])
-		target = None
-		if self.transform is not None:
-			img = self.transform(img)
-		return img, target
+    def __getitem__(self, index):
+        if self.is_train:
+            image = PIL.Image.open(self.image_path / self.df.iloc[index, 0])
+            target = self.df.iloc[index, 2]
+            image = self.transform(image=np.array(image))["image"]
+            return image, target
+        else:
+            png = self.image_path / self.df_test.iloc[index, 0]
+            image = PIL.Image.open(png.parent / (png.stem + ".jpeg"))
+            image = self.transform(image=np.array(image))["image"]
+            return image
